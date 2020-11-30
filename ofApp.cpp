@@ -23,7 +23,7 @@ void ofApp::drawPacked() {
 		offscreen.begin();
 		if (b->contents().size() > 0) {
 			ofClear(255, 255, 255, 0);
-			ofBeginSaveScreenAsPDF(b->userID() + ".pdf");
+			ofBeginSaveScreenAsPDF(b->userID()+"_"+to_string(b->sizX())+"x"+to_string(b->sizY()) + ".pdf");
 
 			ofClear(255, 255, 255, 0);
 			float width = (float)(b->sizX()) * 72. / 100.;
@@ -38,10 +38,10 @@ void ofApp::drawPacked() {
 				float width = (float)(recs->sizX()) * 72. / 100.;
 				float height = (float)(recs->sizY()) * 72. / 100;
 				if (recs->isSpun()) {
-					font.draw(recs->userID(),x + 1, y + 1,.5, false, 90.);
+					font.draw(recs->userID(),x + 1, y + 1,.3, false, 90.);
 				}
 				else {
-					font.draw(recs->userID(), x + 1, y -1+height, .5, false);
+					font.draw(recs->userID(), x + 1, y -1+height, .3, false);
 				}
 				ofSetColor(255, 0, 0);
 				ofDrawRectangle(x, y, width, height);
@@ -185,7 +185,7 @@ void ofApp::loadJson() {
 				string idStr = fname.substr(0, pos);
 				int id = stoi(idStr);
 				float w = j["width"];
-				float h = j["height"];
+				float h = j["height"]+.125;
 				blankData.push_back(make_tuple(id, w, h));
 				blankIDs.push_back(idStr+" " + to_string(w).substr(0,to_string(w).find(".")+2)+"x"+to_string(h).substr(0, to_string(h).find(".") + 2));
 			}
