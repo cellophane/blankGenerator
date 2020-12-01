@@ -10,6 +10,7 @@ class ofApp : public ofBaseApp{
 		
 		void setup();
 		void update();
+		void drawNonOverlapping();
 		void draw();
 
 		void keyPressed(int key);

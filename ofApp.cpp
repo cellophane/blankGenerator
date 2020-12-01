@@ -2,7 +2,7 @@
 #include "json.hpp"
 
 #include "pack2.h"
-
+#include <map>
 using namespace std;
 using json = nlohmann::json;
 //--------------------------------------------------------------
@@ -16,21 +16,190 @@ void ofApp::setup(){
 void ofApp::update(){
 	
 }
-void ofApp::drawPacked() {
+void ofApp::drawNonOverlapping() {
+	ofFbo offscreen;
 	for (pack2::bin_t b : E.bins()) {
-		ofFbo offscreen;
-		offscreen.allocate(2304, 2304);
-		offscreen.begin();
 		if (b->contents().size() > 0) {
-			ofClear(255, 255, 255, 0);
-			ofBeginSaveScreenAsPDF(b->userID()+"_"+to_string(b->sizX())+"x"+to_string(b->sizY()) + ".pdf");
+			
 
 			ofClear(255, 255, 255, 0);
 			float width = (float)(b->sizX()) * 72. / 100.;
 			float height = (float)(b->sizY()) * 72. / 100;
+			offscreen.allocate(width, height);
+			offscreen.begin();
+			ofBeginSaveScreenAsPDF(b->userID() + "_" + to_string((b->sizX() + 25)) + "x" + to_string((b->sizY() + 25)) + ".pdf");
+			ofClear(255, 255, 255, 0);
 			ofSetColor(0, 255, 0);
 			ofNoFill();
-			ofDrawRectangle(0, 0, width, height);
+			ofDrawRectangle(0, 0, width + 18, height + 18);
+
+			map<int, vector<pair<int, int>>> xmap;
+			map<int, vector<pair<int, int>>> ymap;
+			for (auto recs : b->contents()) {
+
+				float X = (float)(recs->locX()) * 72. / 100. + 9;
+				float Y = (float)(recs->locY()) * 72. / 100. + 9;
+				float width = (float)(recs->sizX()) * 72. / 100.;
+				float height = (float)(recs->sizY()) * 72. / 100;
+				if (recs->isSpun()) {
+					font.draw(recs->userID(), X + 1, Y + 1, .5, false, 90.);
+				}
+				else {
+					font.draw(recs->userID(), X + 1, Y - 1 + height, .5, false);
+				}
+				int x = (recs->locX());
+				int y = (recs->locY());
+				int w = (recs->sizX());
+				int h = (recs->sizY());
+				pair<int,int> horizontal = make_pair(x, x + w);
+				pair<int, int> vertical = make_pair(y, y + h);
+				//xmap is a map of horizontal line segments by y value
+				//ymap is similar
+				if (xmap.count(y)) {
+					xmap[y].push_back(horizontal);
+				}
+				else {
+					xmap[y] = vector<pair<int, int>>();
+					xmap[y].push_back(horizontal);
+				}
+				if (xmap.count(y+h)) {
+					xmap[y+h].push_back(horizontal);
+				}
+				else {
+					xmap[y+h] = vector<pair<int, int>>();
+					xmap[y+h].push_back(horizontal);
+				}
+
+				if (ymap.count(x)) {
+					ymap[x].push_back(vertical);
+				}
+				else {
+					ymap[x] = vector<pair<int, int>>();
+					ymap[x].push_back(vertical);
+				}
+
+				if (ymap.count(x+w)) {
+					ymap[x+w].push_back(vertical);
+				}
+				else {
+					ymap[x+w] = vector<pair<int, int>>();
+					ymap[x+w].push_back(vertical);
+				}
+			}
+			ofLog() << "Bin " << b->userID();
+			ofLog()<< to_string(size(xmap));
+			ofLog() << to_string(size(ymap));
+			map<int, vector<pair<int, int>>>::iterator it;
+			for (it = xmap.begin(); it != xmap.end(); it++) {
+				if(size(it->second)>1){
+				sort((it->second).begin(),(it->second.end()));
+				}
+			}
+			for (it = ymap.begin(); it != ymap.end(); it++) {
+				if (size(it->second) > 1) {
+					sort((it->second).begin(), (it->second.end()));
+				}
+			}
+			vector <pair<int, pair<int, int>>> hsegments;
+			vector <pair<int, pair<int, int>>> vsegments;
+			int x1, x2 = 0;
+			for (it = xmap.begin(); it != xmap.end(); it++) {
+				bool first = true;
+				int y = it->first;
+				for (auto seg : it->second) {
+					if (first) {
+						x1 = seg.first;
+						x2 = seg.second;
+						first = false;
+					}
+					else {
+						if (seg.first <= x2) {
+							x2 = seg.second;
+						}
+						else {
+							hsegments.push_back(make_pair(y,make_pair(x1, x2)));
+							x1 = seg.first;
+							x2 = seg.second;
+
+						}
+					}
+
+				}
+				hsegments.push_back(make_pair(y, make_pair(x1, x2)));
+
+			}
+			int y1, y2 = 0;
+			for (it = ymap.begin(); it != ymap.end(); it++) {
+				bool first = true;
+				int x = it->first;
+				if (size(it->second) > 1) {
+					for (auto seg : it->second) {
+						if (first) {
+							y1 = seg.first;
+							y2 = seg.second;
+							first = false;
+						}
+						else {
+							if (seg.first <= y2) {
+								y2 = seg.second;
+							}
+							else {
+								vsegments.push_back(make_pair(x, make_pair(y1, y2)));
+								y1 = seg.first;
+								y2 = seg.second;
+
+							}
+						}
+
+					}
+					vsegments.push_back(make_pair(x, make_pair(y1, y2)));
+				}
+				else {
+					x = it->first;
+					y1 = (it->second[0]).first;
+					y2 = (it->second[0]).second;
+					vsegments.push_back(make_pair(x, make_pair(y1, y2)));
+				}
+			}
+			ofSetColor(255, 0, 0);
+			for (auto seg : hsegments) {
+				float y = seg.first * 72. / 100.+9;
+				float x1 = seg.second.first * 72. / 100.+9;
+				float x2 = seg.second.second * 72. / 100.+9;
+				ofLog() << "Drawing horizontal: " << to_string(y) << "," << to_string(x1) << "," << to_string(x2);
+				ofDrawLine(x1, y, x2, y);
+			}
+			for (auto seg : vsegments) {
+				float x = seg.first * 72. / 100.+9;
+				float y1 = seg.second.first * 72. / 100.+9;
+				float y2 = seg.second.second * 72. / 100.+9;
+				ofLog() << "Drawing vertical: " << to_string(x) << "," << to_string(y1) << "," << to_string(y2);
+				ofDrawLine(x, y1, x, y2);
+			}
+			ofEndSaveScreenAsPDF();
+			offscreen.clear();
+			offscreen.end();
+
+		}
+	}
+}
+void ofApp::drawPacked() {
+	for (pack2::bin_t b : E.bins()) {
+		ofFbo offscreen;
+
+		if (b->contents().size() > 0) {
+			
+			ofBeginSaveScreenAsPDF(b->userID()+"_"+to_string((b->sizX()+25))+"x"+to_string((b->sizY()+25)) + ".pdf");
+
+			ofClear(255, 255, 255, 0);
+			float width = (float)(b->sizX()) * 72. / 100.;
+			float height = (float)(b->sizY()) * 72. / 100;
+			offscreen.allocate(width, height);
+			offscreen.begin();
+			ofClear(255, 255, 255, 0);
+			ofSetColor(0, 255, 0);
+			ofNoFill();
+			ofDrawRectangle(0, 0, width+18, height+18);
 			//ofLog() << to_string(b->userID);
 			for (auto recs : b->contents()) {
 				float x = (float)(recs->locX()) * 72. / 100.+6;
@@ -38,20 +207,21 @@ void ofApp::drawPacked() {
 				float width = (float)(recs->sizX()) * 72. / 100.;
 				float height = (float)(recs->sizY()) * 72. / 100;
 				if (recs->isSpun()) {
-					font.draw(recs->userID(),x + 1, y + 1,.3, false, 90.);
+					font.draw(recs->userID(),x + 1, y + 1,.5, false, 90.);
 				}
 				else {
-					font.draw(recs->userID(), x + 1, y -1+height, .3, false);
+					font.draw(recs->userID(), x + 1, y -1+height, .5, false);
 				}
 				ofSetColor(255, 0, 0);
 				ofDrawRectangle(x, y, width, height);
 				ofLog() << to_string(recs->locX()) << "," << to_string(recs->locY());
 			}
 			ofEndSaveScreenAsPDF();
+			offscreen.clear();
+			offscreen.end();
 		}
 
-		offscreen.clear();
-		offscreen.end();
+		
 	}
 	
 	
@@ -74,6 +244,15 @@ void ofApp::draw(){
 		if (ImGui::Button("Load Customs")) {
 			loadJson();
 		}
+		if(size(blankIDs)>0){
+			ImGui::SameLine();
+			
+		if (ImGui::Button("Clear Customs")) {
+			fileNames=std::vector<std::string>() ;
+			files = std::vector<ofFile>();
+			blankIDs = std::vector<std::string>();
+		}
+		}
 		static int currentBoardIndex = 0;
 		if (!boards.empty()) {
 			if (ofxImGui::VectorListBox("boards", &currentBoardIndex, boardStrings)) {
@@ -93,19 +272,32 @@ void ofApp::draw(){
 			addBoard = true;
 			makeBoard(true);
 		}
-		ImGui::SameLine();
-		if (ImGui::Button("Delete")) {
-			if(currentBoardIndex<boards.size()){
-			boards.erase(boards.begin()+currentBoardIndex);
-			boardStrings.erase(boardStrings.begin()+currentBoardIndex);
+		
+		if (size(boards) > 0) {
+			ImGui::SameLine();
+			if (ImGui::Button("Delete")) {
+				if (currentBoardIndex < boards.size()) {
+					boards.erase(boards.begin() + currentBoardIndex);
+					boardStrings.erase(boardStrings.begin() + currentBoardIndex);
+				}
 			}
 		}
-		if (ImGui::Button("Pack")) {
-			packRects();
+		if (size(boards) > 0 && size(blankIDs) > 0) {
+			if (ImGui::Button("Pack")) {
+				packRects();
+			}
+			if (ImGui::Button("draw")) {
+				drawPacked();
+			}
+			if (ImGui::Button("nonoverlapping")) {
+				drawNonOverlapping();
+			}
 		}
-		if (ImGui::Button("draw")) {
-			drawPacked();
+		if (ImGui::Button("exit")) {
+
+			ofExit();
 		}
+
 		
 	}
 	gui.end();
@@ -203,7 +395,7 @@ void ofApp::loadBoards() {
 			int pos = board.find(",");
 			float w = std::stof(board.substr(0, pos));
 			float h = std::stof(board.substr(pos+1));
-			boards.push_back(make_pair(w, h));
+			boards.push_back(make_pair(w-.125*2, h-.125*2));
 			string boardString = to_string(w).substr(0,to_string(w).find(".")+2) + "," + to_string(h).substr(0, to_string(h).find(".") + 2);
 			boardStrings.push_back(boardString);
 			ofLog() << " Loaded board: " << boardString;
@@ -219,7 +411,7 @@ void ofApp::makeBoard(bool first = false) {
 	static float h;
 	ImGui::InputFloat("height", &h, 4.0f, 32.0f, "%.2f");
 	if (ImGui::Button("submit")) {
-		boards.push_back(make_pair(w, h));
+		boards.push_back(make_pair(w-.125*2, h-.125*2));
 		string boardString = to_string(w).substr(0, to_string(w).find(".") + 2) + "," + to_string(h).substr(0, to_string(h).find(".") + 2);
 		boardStrings.push_back(boardString);
 		ofLog() << " Made board: " << boardString;
