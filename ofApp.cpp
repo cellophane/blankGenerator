@@ -8,7 +8,8 @@ using json = nlohmann::json;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	gui.setup();
-	backgroundColor = ofColor(114, 144, 154);
+	backgroundColor = ofColor(255, 255, 255);
+	font.setColor(ofColor(0, 0, 255));
 	loadedJson = false;
 }
 
@@ -18,6 +19,7 @@ void ofApp::update(){
 }
 void ofApp::drawNonOverlapping() {
 	ofFbo offscreen;
+	
 	for (pack2::bin_t b : E.bins()) {
 		if (b->contents().size() > 0) {
 			
@@ -377,7 +379,7 @@ void ofApp::loadJson() {
 				string idStr = fname.substr(0, pos);
 				int id = stoi(idStr);
 				float w = j["width"];
-				float h = j["height"]+.125;
+				float h = float(j["height"])+.125;
 				blankData.push_back(make_tuple(id, w, h));
 				blankIDs.push_back(idStr+" " + to_string(w).substr(0,to_string(w).find(".")+2)+"x"+to_string(h).substr(0, to_string(h).find(".") + 2));
 			}
