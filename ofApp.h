@@ -28,7 +28,7 @@ class ofApp : public ofBaseApp{
 		void loadBoards();
 		void makeBoard(bool first);
 		void packRects();
-		void drawPacked();
+		float drawPacked(int index);
 		ofxImGui::Gui gui;
 		ofxHersheyFont font;
 		ImVec4 backgroundColor;
@@ -39,8 +39,11 @@ class ofApp : public ofBaseApp{
 		std::vector<std::tuple<int,float,float>> blankData;
 		std::vector<std::pair<float, float>> boards;
 		std::vector<std::string> boardStrings;
+		std::vector<std::string> packedStrings;
+		std::vector<int> packedIndices;
 		bool loadedJson;
 		bool addBoard;
+		bool packed;
 		pack2::cPackEngine E;
 
 

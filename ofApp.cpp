@@ -11,6 +11,7 @@ void ofApp::setup(){
 	backgroundColor = ofColor(255, 255, 255);
 	font.setColor(ofColor(0, 0, 255));
 	loadedJson = false;
+	packed = false;
 }
 
 //--------------------------------------------------------------
@@ -27,7 +28,7 @@ void ofApp::drawNonOverlapping() {
 			ofClear(255, 255, 255, 0);
 			float width = (float)(b->sizX()) * 72. / 100.;
 			float height = (float)(b->sizY()) * 72. / 100;
-			offscreen.allocate(width, height);
+			offscreen.allocate(int(width*1.5), int(height*1.5));
 			offscreen.begin();
 			ofBeginSaveScreenAsPDF(b->userID() + "_" + to_string((b->sizX() + 25)) + "x" + to_string((b->sizY() + 25)) + ".pdf");
 			ofClear(255, 255, 255, 0);
@@ -44,10 +45,10 @@ void ofApp::drawNonOverlapping() {
 				float width = (float)(recs->sizX()) * 72. / 100.;
 				float height = (float)(recs->sizY()) * 72. / 100;
 				if (recs->isSpun()) {
-					font.draw(recs->userID(), X + 1, Y + 1, .5, false, 90.);
+					font.draw(recs->userID(), X + 1, Y + 1, .25, false, 90.);
 				}
 				else {
-					font.draw(recs->userID(), X + 1, Y - 1 + height, .5, false);
+					font.draw(recs->userID(), X + 1, Y - 1 + height, .25, false);
 				}
 				int x = (recs->locX());
 				int y = (recs->locY());
@@ -116,7 +117,9 @@ void ofApp::drawNonOverlapping() {
 					}
 					else {
 						if (seg.first <= x2) {
-							x2 = seg.second;
+							if (seg.second > x2) {
+								x2 = seg.second;
+							}
 						}
 						else {
 							hsegments.push_back(make_pair(y,make_pair(x1, x2)));
@@ -143,7 +146,9 @@ void ofApp::drawNonOverlapping() {
 						}
 						else {
 							if (seg.first <= y2) {
+								if(seg.second>y2){
 								y2 = seg.second;
+								}
 							}
 							else {
 								vsegments.push_back(make_pair(x, make_pair(y1, y2)));
@@ -185,52 +190,52 @@ void ofApp::drawNonOverlapping() {
 		}
 	}
 }
-void ofApp::drawPacked() {
-	for (pack2::bin_t b : E.bins()) {
-		ofFbo offscreen;
-
+float ofApp::drawPacked(int index) {
+	float totalArea = 0;
+	float usedArea = 0;
+	pack2::bin_t b = E.bins()[index];
 		if (b->contents().size() > 0) {
-			
-			ofBeginSaveScreenAsPDF(b->userID()+"_"+to_string((b->sizX()+25))+"x"+to_string((b->sizY()+25)) + ".pdf");
-
 			ofClear(255, 255, 255, 0);
 			float width = (float)(b->sizX()) * 72. / 100.;
 			float height = (float)(b->sizY()) * 72. / 100;
-			offscreen.allocate(width, height);
-			offscreen.begin();
 			ofClear(255, 255, 255, 0);
 			ofSetColor(0, 255, 0);
 			ofNoFill();
-			ofDrawRectangle(0, 0, width+18, height+18);
+			ofDrawRectangle(0, 0, (width+18)/5, (height+18)/5);
 			//ofLog() << to_string(b->userID);
+			totalArea = width * height;
+			
 			for (auto recs : b->contents()) {
 				float x = (float)(recs->locX()) * 72. / 100.+6;
 				float y = (float)(recs->locY()) * 72. / 100.+6;
 				float width = (float)(recs->sizX()) * 72. / 100.;
 				float height = (float)(recs->sizY()) * 72. / 100;
+				usedArea += width * height;
 				if (recs->isSpun()) {
-					font.draw(recs->userID(),x + 1, y + 1,.5, false, 90.);
+					font.draw(recs->userID(),(x + 1)/5, (y + 1)/5,.5, false, 90.);
 				}
 				else {
-					font.draw(recs->userID(), x + 1, y -1+height, .5, false);
+					font.draw(recs->userID(), (x + 1)/5, (y -1)/5+height/5, .5, false);
 				}
 				ofSetColor(255, 0, 0);
-				ofDrawRectangle(x, y, width, height);
-				ofLog() << to_string(recs->locX()) << "," << to_string(recs->locY());
+				ofDrawRectangle(x/5, y/5, width/5, height/5);
+				
 			}
-			ofEndSaveScreenAsPDF();
-			offscreen.clear();
-			offscreen.end();
+			
 		}
-
-		
+		if(totalArea>0){
+		return usedArea / totalArea;
+		}
+		else {
+			return 0;
+		}
 	}
 	
 	
 	
 	
 
-}
+
 //--------------------------------------------------------------
 void ofApp::draw(){
 	ofSetBackgroundColor(backgroundColor);
@@ -287,12 +292,22 @@ void ofApp::draw(){
 		if (size(boards) > 0 && size(blankIDs) > 0) {
 			if (ImGui::Button("Pack")) {
 				packRects();
+				packed = true;
 			}
-			if (ImGui::Button("draw")) {
-				drawPacked();
-			}
-			if (ImGui::Button("nonoverlapping")) {
-				drawNonOverlapping();
+
+			if (packed) {
+				static int currentPackedIndex = 0;
+				if (!boards.empty()) {
+					if (ofxImGui::VectorListBox("packed boards", &currentPackedIndex, packedStrings)) {
+						ofLog() << " Blank index " << to_string(currentBoardIndex);
+					}
+				}
+				float usedArea = drawPacked(currentPackedIndex);
+				ImGui::Text("%.3f",usedArea);
+				if (ImGui::Button("export")) {
+					drawNonOverlapping();
+					
+				}
 			}
 		}
 		if (ImGui::Button("exit")) {
@@ -378,8 +393,8 @@ void ofApp::loadJson() {
 				int pos = fname.find(".");
 				string idStr = fname.substr(0, pos);
 				int id = stoi(idStr);
-				float w = j["width"];
-				float h = float(j["height"])+.125;
+				float w = float(j["width"])+.3;
+				float h = float(j["height"])+.125/2+.32;
 				blankData.push_back(make_tuple(id, w, h));
 				blankIDs.push_back(idStr+" " + to_string(w).substr(0,to_string(w).find(".")+2)+"x"+to_string(h).substr(0, to_string(h).find(".") + 2));
 			}
@@ -446,8 +461,14 @@ void ofApp::packRects() {
 	}
 	Pack(E);
 	ofLog() << CSV(E);
-	for (pack2::bin_t b : E.bins()) {
+	for(int ind = 0; ind<E.bins().size();++ind){
+		packedIndices = std::vector<int>();
+		pack2::bin_t b = E.bins()[ind];
+
 		if (b->contents().size() > 0) {
+			packedIndices.push_back(ind);
+			string packedString = to_string(ind) + ": " + to_string(b->sizX()+25) + "," + to_string(b->sizY()+25);
+			packedStrings.push_back(packedString);
 			//ofLog() << to_string(b->userID);
 			for (auto recs : b->contents()) {
 				ofLog() << (recs->userID());
