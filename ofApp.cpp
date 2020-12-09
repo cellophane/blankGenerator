@@ -356,22 +356,22 @@ void ofApp::mouseEntered(int x, int y){
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseExited(int x, int y){
+void ofApp::mouseExited(int x, int y) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
+void ofApp::windowResized(int w, int h) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::gotMessage(ofMessage msg){
+void ofApp::gotMessage(ofMessage msg) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
+void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 }
 void ofApp::loadJson() {
@@ -383,7 +383,7 @@ void ofApp::loadJson() {
 		files = dataDirectory.getFiles();
 		for (size_t i = 0; i < files.size(); i++)
 		{
-			if(files[i].getExtension()=="json"){
+			if (files[i].getExtension() == "json") {
 				fileNames.push_back(files[i].getFileName());
 				string fname = files[i].getFileName();
 				json j;
@@ -393,10 +393,10 @@ void ofApp::loadJson() {
 				int pos = fname.find(".");
 				string idStr = fname.substr(0, pos);
 				int id = stoi(idStr);
-				float w = float(j["width"])+.3;
-				float h = float(j["height"])+.125/2+.32;
+				float w = float(j["width"]) + .3;
+				float h = float(j["height"]) + .125 / 2 + .32;
 				blankData.push_back(make_tuple(id, w, h));
-				blankIDs.push_back(idStr+" " + to_string(w).substr(0,to_string(w).find(".")+2)+"x"+to_string(h).substr(0, to_string(h).find(".") + 2));
+				blankIDs.push_back(idStr + " " + to_string(w).substr(0, to_string(w).find(".") + 2) + "x" + to_string(h).substr(0, to_string(h).find(".") + 2));
 			}
 		}
 	}
@@ -408,12 +408,12 @@ void ofApp::loadBoards() {
 		string inputFile = result.getPath();
 		std::ifstream i(inputFile);
 		string board;
-		while (std::getline(i,board)) {
+		while (std::getline(i, board)) {
 			int pos = board.find(",");
 			float w = std::stof(board.substr(0, pos));
-			float h = std::stof(board.substr(pos+1));
-			boards.push_back(make_pair(w-.125*2, h-.125*2));
-			string boardString = to_string(w).substr(0,to_string(w).find(".")+2) + "," + to_string(h).substr(0, to_string(h).find(".") + 2);
+			float h = std::stof(board.substr(pos + 1));
+			boards.push_back(make_pair(w - .125 * 2, h - .125 * 2));
+			string boardString = to_string(w).substr(0, to_string(w).find(".") + 2) + "," + to_string(h).substr(0, to_string(h).find(".") + 2);
 			boardStrings.push_back(boardString);
 			ofLog() << " Loaded board: " << boardString;
 		}
@@ -428,7 +428,7 @@ void ofApp::makeBoard(bool first = false) {
 	static float h;
 	ImGui::InputFloat("height", &h, 4.0f, 32.0f, "%.2f");
 	if (ImGui::Button("submit")) {
-		boards.push_back(make_pair(w-.125*2, h-.125*2));
+		boards.push_back(make_pair(w - .125 * 2, h - .125 * 2));
 		string boardString = to_string(w).substr(0, to_string(w).find(".") + 2) + "," + to_string(h).substr(0, to_string(h).find(".") + 2);
 		boardStrings.push_back(boardString);
 		ofLog() << " Made board: " << boardString;
@@ -439,15 +439,36 @@ void ofApp::packRects() {
 	//multiply all values by 100 and round
 	int count = 0;
 	//E.Algorithm().fMultipleFit = true;
+	//E.clear();
 	E.Algorithm().fTryEveryItemFirst = true;
 	E.Algorithm().fThruCuts = false;
 	for (auto board : boards) {
+		/*
+		if ((board.first > 29 || board.second > 29) || (board.first > 20 && board.second > 20)) {
+			bigBoards.push_back(board);
+		}
+		else {
+		*/
 		pack2::bin_t b = pack2::bin_t(new pack2::cBin("Bin " + to_string(count), (int)(board.first * 100), (int)(board.second * 100)));
-		
+		smallBoards.push_back(board);
 		E.add(b);
 		count += 1;
-	}
+		//}
 
+	}
+	if (size(bigBoards) > 0) {
+		for (auto bigBoard : bigBoards) {
+			E.clear();
+			if (bigBoard.first > 30) {
+
+			}
+			for (auto board : smallBoards) {
+				pack2::bin_t b = pack2::bin_t(new pack2::cBin("Bin " + to_string(count), (int)(board.first * 100), (int)(board.second * 100)));
+				E.add(b);
+				count += 1;
+			}
+		}
+	}
 	SortBinsIntoIncreasingSize(E);
 	for (auto blank : blankData) {
 		int id = get<0>(blank);
@@ -463,6 +484,7 @@ void ofApp::packRects() {
 	ofLog() << CSV(E);
 	for(int ind = 0; ind<E.bins().size();++ind){
 		packedIndices = std::vector<int>();
+		packedStrings = std::vector<string>();
 		pack2::bin_t b = E.bins()[ind];
 
 		if (b->contents().size() > 0) {

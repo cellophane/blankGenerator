@@ -38,6 +38,8 @@ class ofApp : public ofBaseApp{
 		ofDirectory jsonDirectory;
 		std::vector<std::tuple<int,float,float>> blankData;
 		std::vector<std::pair<float, float>> boards;
+		std::vector<std::pair<float, float>> bigBoards;
+		std::vector<std::pair<float, float>> smallBoards;
 		std::vector<std::string> boardStrings;
 		std::vector<std::string> packedStrings;
 		std::vector<int> packedIndices;
